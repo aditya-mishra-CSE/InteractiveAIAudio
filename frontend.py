@@ -118,75 +118,129 @@ def parse_dialogue(text):
 #     components.html(js, height=0)
 
 
-
+#works
 def speak_dialogue(dialogue):
-    """
-    Speaker A -> Indian English (Male)
-    Speaker B -> Indian English (Female)
-    Deterministic & Streamlit-safe
-    """
-
     js = """
     <script>
     speechSynthesis.cancel();
 
-    function waitForVoices(callback) {
-        let voices = speechSynthesis.getVoices();
-        if (voices.length) {
-            callback(voices);
-        } else {
-            speechSynthesis.onvoiceschanged = () => {
-                callback(speechSynthesis.getVoices());
-            };
-        }
+    function getVoices() {
+        return speechSynthesis.getVoices();
     }
 
-    waitForVoices(function(voices) {
-
-        // 🇮🇳 Indian English voices
-        const indianVoices = voices.filter(v => v.lang === "en-IN");
-
-        // Male Indian voice
-        const maleVoice =
-            indianVoices.find(v =>
-                /male|ravi|amit|arjun|rahul|dev/i.test(v.name)
-            ) ||
-            indianVoices.find(v => !/female|zira|susan|samantha/i.test(v.name)) ||
-            indianVoices[0] ||
+    function pickMaleFemaleVoices(voices) {
+        const male =
+            voices.find(v => /male|ravi|arjun|rahul|amit|dev/i.test(v.name)) ||
+            voices.find(v => !/female|zira|susan|samantha/i.test(v.name)) ||
             voices[0];
 
-        // Female Indian voice
-        const femaleVoice =
-            indianVoices.find(v =>
-                /female|zira|susan|samantha|kiran|neha|anita/i.test(v.name)
-            ) ||
-            indianVoices.find(v => v !== maleVoice) ||
+        const female =
+            voices.find(v => /female|zira|susan|samantha|neha|anita/i.test(v.name)) ||
+            voices.find(v => v !== male) ||
             voices[1] ||
             voices[0];
+
+        return { male, female };
+    }
+
+    function speak(text, voice) {
+        let u = new SpeechSynthesisUtterance(text);
+        u.voice = voice;
+        u.rate = 1;
+        speechSynthesis.speak(u);
+    }
+
+    function startSpeaking() {
+        const voices = getVoices();
+        if (!voices.length) {
+            setTimeout(startSpeaking, 100);
+            return;
+        }
+
+        const { male, female } = pickMaleFemaleVoices(voices);
     """
 
     for speaker, text in dialogue:
-        if speaker == "Speaker A":
-            js += f"""
-            let uA = new SpeechSynthesisUtterance({text!r});
-            uA.voice = maleVoice;
-            uA.rate = 1;
-            speechSynthesis.speak(uA);
-            """
-        else:
-            js += f"""
-            let uB = new SpeechSynthesisUtterance({text!r});
-            uB.voice = femaleVoice;
-            uB.rate = 1;
-            speechSynthesis.speak(uB);
-            """
+        voice = "male" if speaker == "Speaker A" else "female"
+        js += f"speak({text!r}, {voice});\n"
 
     js += """
-    });
+    }
+
+    startSpeaking();
     </script>
     """
 
     components.html(js, height=0)
+
+# def speak_dialogue(dialogue):
+#     """
+#     Speaker A -> Indian English (Male)
+#     Speaker B -> Indian English (Female)
+#     Deterministic & Streamlit-safe
+#     """
+
+#     js = """
+#     <script>
+#     speechSynthesis.cancel();
+
+#     function waitForVoices(callback) {
+#         let voices = speechSynthesis.getVoices();
+#         if (voices.length) {
+#             callback(voices);
+#         } else {
+#             speechSynthesis.onvoiceschanged = () => {
+#                 callback(speechSynthesis.getVoices());
+#             };
+#         }
+#     }
+
+#     waitForVoices(function(voices) {
+
+#         // 🇮🇳 Indian English voices
+#         const indianVoices = voices.filter(v => v.lang === "en-IN");
+
+#         // Male Indian voice
+#         const maleVoice =
+#             indianVoices.find(v =>
+#                 /male|ravi|amit|arjun|rahul|dev/i.test(v.name)
+#             ) ||
+#             indianVoices.find(v => !/female|zira|susan|samantha/i.test(v.name)) ||
+#             indianVoices[0] ||
+#             voices[0];
+
+#         // Female Indian voice
+#         const femaleVoice =
+#             indianVoices.find(v =>
+#                 /female|zira|susan|samantha|kiran|neha|anita/i.test(v.name)
+#             ) ||
+#             indianVoices.find(v => v !== maleVoice) ||
+#             voices[1] ||
+#             voices[0];
+#     """
+
+#     for speaker, text in dialogue:
+#         if speaker == "Speaker A":
+#             js += f"""
+#             let uA = new SpeechSynthesisUtterance({text!r});
+#             uA.voice = maleVoice;
+#             uA.rate = 1;
+#             speechSynthesis.speak(uA);
+#             """
+#         else:
+#             js += f"""
+#             let uB = new SpeechSynthesisUtterance({text!r});
+#             uB.voice = femaleVoice;
+#             uB.rate = 1;
+#             speechSynthesis.speak(uB);
+#             """
+
+#     js += """
+#     });
+#     </script>
+#     """
+
+#     components.html(js, height=0)
 
 # ================= SESSION =================
 if "thread_id" not in st.session_state:
@@ -272,3 +326,4 @@ if user_input:
             f"{meta['chunks']} chunks | "
             f"{meta['documents']} pages"
         )
+
